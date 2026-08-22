@@ -1,0 +1,120 @@
+%%% Verze pro jednostranný tisk:
+\documentclass[11pt,a4paper]{report}
+\usepackage[top=25mm,bottom=25mm,right=25mm,left=30mm,head=12.5mm,foot=12.5mm]{geometry}
+\let\openright=\clearpage
+
+%%% Pokud tiskneme oboustranně:
+%\documentclass[11pt,a4paper,twoside,openright]{report}
+%\usepackage[top=25mm,bottom=25mm,right=25mm,left=30mm,head=12.5mm,foot=12.5mm]{geometry}
+%\let\openright=\cleardoublepage
+
+%%% DEFINICE ZÁKLADNÍCH PROMĚNNÝCH
+\def\TypPrace{BP}                % bakalářská práce/bachelor thesis
+%\def\TypPrace{DP}               % diplomová práce/master thesis
+\def\Jazyk{cze}                  % čeština/czech
+%\def\Jazyk{slo}                 % slovenština/slovak
+%\def\Jazyk{eng}                 % angličtina/english
+
+%%% Definice různých užitečných maker (viz popis uvnitř souboru)
+\input{macros}
+
+%%% Název práce v jazyce práce (přesně podle zadání)
+%%% Title of the thesis in the language used in the text (exact according to assignment)
+\def\NazevPrace{Návrh, implementace a evaluace MCP serveru pro zpřístupnění studijních dat VŠE AI agentům}
+
+%%% Jméno autora
+%%% Author's name - First name Surname
+\def\AutorPrace{Jan Komínek}
+
+%%% Rok odevzdání a měsíc (slovně)
+%%% Year of submission and month (verbally) - month YYYY
+\def\DatumOdevzdani{květen 2027}
+
+%%% Vedoucí práce: Jméno a příjmení s~tituly
+%%% Supervisor: First name and surname with titles
+\def\Vedouci{Ing. Luboš Pavlíček}   % TODO ověřit přesné tituly vedoucího dle InSIS
+
+%%% Konzultant práce: Jméno a příjmení s~tituly
+%%% Consultant: First name and surname with titles
+\def\Konzultant{}
+
+%%% Studijní program
+%%% Study program
+\def\StudijniProgram{Aplikovaná informatika}   % TODO ověřit přesný název programu dle InSIS
+
+%%% Studijní program - specializace
+%%% Study program - specialization
+\def\Specializace{}   % TODO doplnit specializaci, pokud ji program má
+
+%%% Nepovinné poděkování (vedoucímu práce, konzultantovi, tomu, kdo zapůjčil software, literaturu apod.)
+%%% Optional thanks (the supervisor, the consultant, the borrower of software, literature, etc.)
+\def\Podekovani{%
+Poděkování. % TODO
+}
+
+%%% Abstrakt (doporučený rozsah cca 150-250 slov; nejedná se o zadání práce)
+\def\Abstrakt{%
+Abstrakt. % TODO napsat na konci (cca 150–250 slov)
+}
+\def\AbstraktEN{%
+Abstract. % TODO English abstract (~150–250 words)
+}
+
+%%% 3 až 5 klíčových slov (doporučeno)
+\def\KlicovaSlova{Model Context Protocol, MCP server, velké jazykové modely, integrace dat, InSIS, studijní data, AI agenti}
+\def\KlicovaSlovaEN{Model Context Protocol, MCP server, large language models, data integration, InSIS, study data, AI agents}
+
+%%% Titulní strana a různé povinné informativní strany
+%%% Title page and various mandatory information pages
+\begin{document}
+\include{beginning}
+
+%%% Strana s automaticky generovaným obsahem práce
+%%% A page with automatically generated content of the thesis
+\setcounter{tocdepth}{2}
+\tableofcontents
+
+%%% Seznamy obrázků / tabulek / výpisů kódu zapneme, až jich bude v práci >20.
+%\openright
+%\listoffigures
+%\clearpage
+%\listoftables
+%\clearpage
+%\lstlistoflistings
+
+%%% Seznam zkratek v práci (volitelně)
+%%% List of abbreviations in the thesis (optionally)
+\include{abbreviations}
+
+\pagestyle{fancyx}
+
+%%% ÚVOD (nečíslovaná kapitola)
+{%
+\pagestyle{plain}
+\include{chapters/introduction}
+}
+
+%%% ČÁST I — Teoreticko-analytická
+\part{Teoreticko-analytická část}
+\include{chapters/01-integration-architectures}
+\include{chapters/02-mcp-protocol}
+\include{chapters/03-context-and-tokens}
+\include{chapters/04-domain-analysis}
+
+%%% ČÁST II — Praktická
+\part{Praktická část}
+\include{chapters/05-design}
+\include{chapters/06-implementation}
+\include{chapters/07-evaluation-and-discussion}
+
+%%% ZÁVĚR (nečíslovaná kapitola)
+{%
+\pagestyle{plain}
+\include{chapters/conclusion}
+}
+
+%%% Seznam použité literatury
+%%% Bibliography
+\include{bibliography}
+
+\end{document}
