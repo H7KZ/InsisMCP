@@ -1,0 +1,31 @@
+# VŠE-provided reference material — kept local, not versioned (bulky binaries,
+# public repo, not our content). Remove these two lines if you want them tracked.
+.requirements/
+.templates/
+
+# latexmk build output
+/build/
+
+# LaTeX aux files (in case someone builds without out_dir)
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.xmpi
+*.pdfa.xmpi
+
+# latexindent backups
+*.bak*
+indent.log
+
+# editor
+*.swp

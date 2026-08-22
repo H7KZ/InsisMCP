@@ -1,0 +1,24 @@
+# chktex configuration for this thesis.
+# Invoke:  chktex -q -g0 -l .chktexrc thesis.tex chapters/*.tex
+#
+# CmdLine adds default arguments on every run:
+#   -I0  : do NOT descend into \input/\include files — lint only the files we
+#          list, so template internals (macros/biblatex-setup/ai-declaration)
+#          don't produce noise we can't act on.
+#   -nNN : disable individual warnings that are noisy / false positives here:
+#     n1  Command terminated with space.
+#     n8  Wrong length of dash.
+#     n12 Interword spacing `\ ` — fires on Czech abbreviations (vs., tj., např.).
+#     n13 Intersentence spacing `\@` — same, fires on Czech abbreviations/colons.
+#     n36 Punctuation in front of/after ...
+#     n46 Use ` to begin quotation — conflicts with csquotes/Czech.
+CmdLine
+{
+    -I0
+    -n1
+    -n8
+    -n12
+    -n13
+    -n36
+    -n46
+}

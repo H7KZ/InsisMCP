@@ -1,0 +1,19 @@
+# latexindent settings for this thesis.
+# Format in place:  latexindent -s -w -l latexindent.yaml -m thesis.tex chapters/*.tex
+#   -w  overwrite   -s  silent   -m  modify line breaks   -l  this local config
+
+defaultIndent: "  "          # two spaces per level
+
+# We are in git, so don't litter the tree with backups
+onlyOneBackUp: 1
+maxNumberOfBackUps: 0
+cycleThroughBackUps: 0
+
+removeTrailingWhitespace:
+  beforeProcessing: 1
+  afterProcessing: 1
+
+# Don't touch verbatim/listings content
+verbatimEnvironments:
+  verbatim: 1
+  lstlisting: 1
