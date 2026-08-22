@@ -16,6 +16,30 @@ id_ed25519*
 # Node / build artifacts
 node_modules/
 dist/
+build/
 cache/
 notes/
 .example/
+
+# LaTeX aux files (in case someone builds without out_dir)
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.xmpi
+*.pdfa.xmpi
+
+# latexindent backups
+*.bak*
+indent.log
+
+# editor
+*.swp

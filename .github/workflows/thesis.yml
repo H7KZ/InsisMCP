@@ -1,0 +1,101 @@
+# Build the bachelor thesis PDF (LaTeX), lint it, and validate PDF/A
+# The build produces a downloadable artifact on every push touching the thesis
+
+name: Thesis
+
+on:
+  push:
+    paths:
+      - 'thesis/**'
+      - '!thesis/.requirements/**'
+      - '!thesis/.templates/**'
+      - '.github/workflows/thesis.yml'
+  pull_request:
+    paths:
+      - 'thesis/**'
+      - '!thesis/.requirements/**'
+      - '!thesis/.templates/**'
+      - '.github/workflows/thesis.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build PDF (latexmk)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: texlive/texlive:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build thesis (pdflatex + biber via latexmk)
+        working-directory: thesis
+        run: latexmk
+
+      - name: Upload thesis.pdf
+        uses: actions/upload-artifact@v4
+        with:
+          name: thesis-pdf
+          path: thesis/build/thesis.pdf
+          if-no-files-found: error
+
+  lint:
+    name: Lint (chktex)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    container:
+      image: texlive/texlive:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: chktex
+        working-directory: thesis
+        run: chktex -q -g0 -l .chktexrc thesis.tex chapters/*.tex
+
+  pdfa-validate:
+    name: Validate PDF/A (veraPDF)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - name: Download built PDF
+        uses: actions/download-artifact@v4
+        with:
+          name: thesis-pdf
+          path: pdf
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+
+      - name: Install veraPDF
+        run: |
+          set -euo pipefail
+          curl -sL -o verapdf-installer.zip https://software.verapdf.org/releases/verapdf-installer.zip
+          unzip -q verapdf-installer.zip -d verapdf-installer
+          cat > auto-install.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+          <AutomatedInstallation langpack="eng">
+            <com.izforge.izpack.panels.htmlhello.HTMLHelloPanel id="welcome"/>
+            <com.izforge.izpack.panels.target.TargetPanel id="install_dir">
+              <installpath>${HOME}/verapdf</installpath>
+            </com.izforge.izpack.panels.target.TargetPanel>
+            <com.izforge.izpack.panels.packs.PacksPanel id="sdk_pack_select"/>
+            <com.izforge.izpack.panels.install.InstallPanel id="install"/>
+            <com.izforge.izpack.panels.finish.FinishPanel id="finish"/>
+          </AutomatedInstallation>
+          EOF
+          INSTALLER_JAR="$(find verapdf-installer -name '*.jar' | head -n1)"
+          java -jar "$INSTALLER_JAR" auto-install.xml
+
+      - name: Validate (PDF/A-2u)
+        run: |
+          set -euo pipefail
+          "${HOME}/verapdf/verapdf" --flavour 2u --format text pdf/thesis.pdf
