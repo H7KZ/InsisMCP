@@ -1,0 +1,40 @@
+{
+	"name": "@insis/mcp",
+	"version": "0.0.1",
+	"description": "MCP server for VŠE InSIS",
+	"license": "MIT",
+	"private": false,
+	"type": "module",
+	"engines": {
+		"node": ">=24"
+	},
+	"bin": {
+		"insis-mcp": "./dist/index.js"
+	},
+	"main": "./dist/index.js",
+	"scripts": {
+		"dev": "tsx watch src/index.ts",
+		"build": "tsup",
+		"start": "node dist/index.js",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"test:watch": "vitest",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
+		"format": "prettier --write \"**/*.{ts,mjs,json,md}\"",
+		"format:check": "prettier --check \"**/*.{ts,mjs,json,md}\""
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@types/node": "^24.19.2",
+		"eslint": "^10.13.0",
+		"eslint-config-prettier": "^10.1.8",
+		"globals": "^17.13.0",
+		"prettier": "^3.9.10",
+		"tsup": "^9.0.0",
+		"tsx": "^4.23.15",
+		"typescript": "~5.8.3",
+		"typescript-eslint": "^8.71.2",
+		"vitest": "^5.0.5"
+	}
+}

@@ -1,0 +1,7 @@
+% Metadata k uložení do PDF, podrobnější popis viz dokumentace balíčku pdfx.
+
+\Author{Jan Komínek}
+\Title{Návrh, implementace a evaluace MCP serveru pro zpřístupnění studijních dat VŠE AI agentům}
+\Keywords{Model Context Protocol\sep MCP server\sep velké jazykové modely\sep integrace dat\sep InSIS\sep studijní data\sep AI agenti}
+\Subject{Bakalářská práce – návrh, implementace a evaluace MCP serveru zpřístupňujícího studijní data VŠE jazykovým modelům.}
+\Publisher{Vysoká škola ekonomická v Praze, fakulta informatiky a statistiky}
