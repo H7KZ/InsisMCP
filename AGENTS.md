@@ -10,15 +10,20 @@ repository is public.
 
 ## Repository map
 
-| Path        | What                                                    | State                                    |
-|-------------|---------------------------------------------------------|------------------------------------------|
-| `mcp/`      | The MCP server (TypeScript, Node 24, npm)               | Tooling only; design undecided           |
-| `thesis/`   | Bachelor's thesis (LaTeX, FIS template)                 | Template; author writes the content      |
-| `planning/` | Author's planning notes (thesis schedule, structure, …) | Author-owned                             |
-| `.github/`  | CI: thesis PDF build, chktex lint, PDF/A validation     | Working                                  |
+| Path              | What                                                         | State                               |
+|-------------------|--------------------------------------------------------------|-------------------------------------|
+| `mcp/`            | The MCP server (TypeScript, Node 24, npm)                    | Tooling only                        |
+| `thesis/`         | Bachelor's thesis (LaTeX, FIS template)                      | Template; author writes the content |
+| `planning/`       | Author's planning notes (thesis schedule, structure, …)      | Author-owned                        |
+| `planning/infra/` | Agreed infra design: ETL, runtime, deployment, monitoring    | Design only, not implemented        |
+| `TODO.md`         | Open questions for the thesis advisor, placeholders to fix   | Author-owned                        |
+| `.github/`        | CI: thesis PDF build, chktex lint, PDF/A validation          | Working                             |
 
-The server design (data source, database, caching, hosting, deployment) is undecided — do not build on assumptions
-about it. Ask first.
+Planned by the infra design, not created yet: `etl/`, `packages/db/`, `deploy/`, `scripts/`, root workspace
+`package.json` and `compose.yaml` — see [planning/infra/repo-layout.md](planning/infra/repo-layout.md).
+
+Build on [planning/infra/](planning/infra/README.md) for data path, hosting and deployment; its
+[open questions](planning/infra/open-questions.md) are not decided — ask first. MCP tool design is still undecided.
 
 ## Commands
 
