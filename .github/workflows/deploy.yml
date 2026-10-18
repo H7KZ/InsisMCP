@@ -1,0 +1,144 @@
+# Build (or reuse) the service images and deploy: develop → development, main → production.
+# Design: planning/infra/deployment.md
+#
+# Images are keyed by the content they are built from (subtree hash). When tree-<key> already exists, e.g. main merged
+# from develop or a docs-only commit, the image is only retagged, never rebuilt. Every deployed commit gets a
+# sha-<commit> tag, which the VM pulls.
+#
+# TODO: manual trigger only until these exist (see deploy/README.md), then add:
+#   push: { branches: [develop, main], paths: [mcp/**, etl/**, packages/**, package.json, package-lock.json,
+#           deploy/stacks/app/**, .github/workflows/deploy.yml] }
+#   - mcp/Dockerfile, etl/Dockerfile
+#   - deploy/bin/deploy.sh on the VM as the forced command of the CI key
+#   - GitHub environments `production` / `development` with secrets DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS and
+#     variable DEPLOY_HOST
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [development, production]
+      sha:
+        description: Commit to deploy (full 40-character sha; empty = head of the selected branch)
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Resolve target
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.target.outputs.environment }}
+      env: ${{ steps.target.outputs.env }}
+      sha: ${{ steps.target.outputs.sha }}
+    steps:
+      - id: target
+        env:
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+          INPUT_SHA: ${{ inputs.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            environment=$INPUT_ENVIRONMENT
+            sha=${INPUT_SHA:-$GITHUB_SHA}
+          elif [ "$GITHUB_REF_NAME" = main ]; then
+            environment=production
+            sha=$GITHUB_SHA
+          else
+            environment=development
+            sha=$GITHUB_SHA
+          fi
+          [[ $sha =~ ^[0-9a-f]{40}$ ]] || { echo "::error::sha must be a full 40-character commit hash"; exit 1; }
+          env=$([ "$environment" = production ] && echo prod || echo dev)
+          {
+            echo "environment=$environment"
+            echo "env=$env"
+            echo "sha=$sha"
+          } >> "$GITHUB_OUTPUT"
+
+  images:
+    name: Image ${{ matrix.app }}
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        app: [mcp, etl]
+    env:
+      IMAGE: ghcr.io/h7kz/insis-${{ matrix.app }}
+      SHA: ${{ needs.resolve.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      - name: Content key
+        id: key
+        # Everything the image is built from: the app, shared packages, root manifest and lockfile
+        run: echo "key=$(git rev-parse "HEAD:${{ matrix.app }}" HEAD:packages HEAD:package.json HEAD:package-lock.json | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Reuse existing image
+        id: reuse
+        run: |
+          if docker buildx imagetools inspect "$IMAGE:tree-${{ steps.key.outputs.key }}" > /dev/null 2>&1; then
+            docker buildx imagetools create -t "$IMAGE:sha-$SHA" "$IMAGE:tree-${{ steps.key.outputs.key }}"
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push
+        if: steps.reuse.outputs.hit != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.app }}/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:tree-${{ steps.key.outputs.key }}
+            ${{ env.IMAGE }}:sha-${{ env.SHA }}
+          build-args: GIT_SHA=${{ env.SHA }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.SHA }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  deploy:
+    name: Deploy to ${{ needs.resolve.outputs.environment }}
+    needs: [resolve, images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ needs.resolve.outputs.environment }}
+    concurrency:
+      group: deploy-${{ needs.resolve.outputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - name: SSH key and pinned host key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      # The key's forced command runs deploy.sh with "<env> <sha>"; nothing else is possible over this key
+      - name: Deploy
+        run: >-
+          ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
+          "deploy@${{ vars.DEPLOY_HOST }}" "${{ needs.resolve.outputs.env }} ${{ needs.resolve.outputs.sha }}"

@@ -1,0 +1,26 @@
+# Prune old container image versions, keeping the newest 30 per package. Retagged images share one version; an older
+# commit can always be rebuilt with the Deploy workflow (manual run with its sha).
+#
+# TODO: add `schedule: [{ cron: '0 3 * * 0' }]` once the first images are pushed (the packages do not exist yet)
+
+name: GHCR cleanup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  prune:
+    name: Prune ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [insis-mcp, insis-etl]
+    steps:
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ matrix.package }}
+          package-type: container
+          min-versions-to-keep: 30
