@@ -7,7 +7,8 @@
 	},
 	"workspaces": [
 		"packages/*",
-		"mcp"
+		"mcp",
+		"etl"
 	],
 	"scripts": {
 		"build": "npm run build --workspaces --if-present",

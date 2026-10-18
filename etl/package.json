@@ -1,0 +1,19 @@
+{
+	"name": "@insis/etl",
+	"version": "0.0.1",
+	"description": "Nightly ETL from InSIS (Oracle isis-db2) into Postgres",
+	"license": "MIT",
+	"private": true,
+	"type": "module",
+	"engines": {
+		"node": ">=24"
+	},
+	"main": "./dist/index.js",
+	"scripts": {
+		"dev": "tsx src/index.ts",
+		"build": "tsup",
+		"start": "node dist/index.js",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run --passWithNoTests"
+	}
+}
