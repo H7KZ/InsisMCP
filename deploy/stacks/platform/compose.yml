@@ -1,0 +1,76 @@
+# Shared platform: edge proxy and Postgres for all environments. Started by hand (see deploy/README.md).
+
+services:
+  traefik:
+    image: traefik:v3.7.15
+    restart: unless-stopped
+    command:
+      # Plain HTTP: the VŠE upstream proxy terminates TLS and forwards here
+      - --entrypoints.web.address=:8080
+      - --entrypoints.web.forwardedHeaders.trustedIPs=${UPSTREAM_PROXY_IPS:?}
+      # Internal entrypoint for metrics and the healthcheck, not published
+      - --entrypoints.metrics.address=:8082
+      - --metrics.prometheus=true
+      - --metrics.prometheus.entryPoint=metrics
+      - --metrics.prometheus.addRoutersLabels=true
+      - --ping=true
+      - --ping.entryPoint=metrics
+      # Routes come from labels of containers on the edge network; nothing is exposed unless labelled
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=edge
+      - --log.format=json
+      # No access log: request metrics are enough and no client addresses get stored
+      - --accesslog=false
+    ports:
+      - ${TRAEFIK_PORT:-8080}:8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - edge
+    labels:
+      # Picked up by Alloy (monitoring stack)
+      - insis.metrics.port=8082
+    healthcheck:
+      test: [CMD, traefik, healthcheck, --ping, --entrypoints.metrics.address=:8082, --ping.entryPoint=metrics]
+      interval: 30s
+    mem_limit: 256m
+
+  postgres:
+    image: postgres:18.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    # Sized for an 8 GiB host shared with everything else
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=3GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_connections=60
+    volumes:
+      - pgdata:/var/lib/postgresql
+    networks:
+      - db
+    shm_size: 256m
+    healthcheck:
+      test: [CMD, pg_isready, -U, postgres]
+      interval: 10s
+    mem_limit: 2g
+
+networks:
+  edge:
+    name: edge
+  db:
+    name: db
+    # No internet access: only containers on this host talk to Postgres
+    internal: true
+
+volumes:
+  pgdata:
