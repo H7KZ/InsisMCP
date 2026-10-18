@@ -20,3 +20,18 @@
 
 - [ ] DNS for `mcp.insis.cz` and `bpmcp.insis.cz`.
 - [ ] Check what the existing Docker containers/networks on the VM are before bootstrap.
+
+## Implementation
+
+Step by step, one branch each. Design: [planning/infra/](planning/infra/README.md).
+
+- [ ] ETL — steps in [etl/README.md § 13](etl/README.md#13-implementation-steps)
+- [ ] MCP server: stateless Streamable HTTP endpoint and `/health` (data age, schema version)
+- [ ] MCP server: `/metrics` with aggregate usage metrics
+- [ ] MCP server: tools (design still open)
+- [ ] Container images for `mcp` and `etl`
+- [ ] Local development: Postgres in `compose.yaml`, dev data dump script
+- [ ] Deploy: platform stack (Traefik, Postgres), app stack, `deploy.sh` with rollback, systemd timers, env examples,
+      bootstrap runbook
+- [ ] CI: checks workflow, deploy workflow (image reuse by content hash), GHCR cleanup
+- [ ] Monitoring: Prometheus, Grafana, Loki, Alloy, alerts to Discord, weekly usage report

@@ -12,31 +12,34 @@ repository is public.
 
 | Path              | What                                                         | State                               |
 |-------------------|--------------------------------------------------------------|-------------------------------------|
-| `mcp/`            | The MCP server (TypeScript, Node 24, npm)                    | Tooling only                        |
+| `mcp/`            | The MCP server (TypeScript, Node 24, npm workspace)          | Skeleton with TODOs                 |
+| `etl/`            | Nightly ETL isis-db2 → Postgres (`etl/README.md`)            | Skeleton with TODOs, documented     |
+| `packages/db/`    | Contract shared by `mcp` and `etl`                           | Skeleton with TODOs                 |
 | `thesis/`         | Bachelor's thesis (LaTeX, FIS template)                      | Template; author writes the content |
 | `planning/`       | Author's planning notes (thesis schedule, structure, …)      | Author-owned                        |
 | `planning/infra/` | Agreed infra design: ETL, runtime, deployment, monitoring    | Design only, not implemented        |
-| `TODO.md`         | Open questions for the thesis advisor, placeholders to fix   | Author-owned                        |
+| `TODO.md`         | Advisor questions and the implementation checklist           | Author-owned                        |
 | `.github/`        | CI: thesis PDF build, chktex lint, PDF/A validation          | Working                             |
 
-Planned by the infra design, not created yet: `etl/`, `packages/db/`, `deploy/`, `scripts/`, root workspace
-`package.json` and `compose.yaml` — see [planning/infra/repo-layout.md](planning/infra/repo-layout.md).
+Planned by the infra design, not created yet: `deploy/`, `scripts/`, `compose.yaml`, CI for the workspaces — see
+[planning/infra/repo-layout.md](planning/infra/repo-layout.md). Work goes step by step along the checklist in `TODO.md`;
+build only the step asked for.
 
 Build on [planning/infra/](planning/infra/README.md) for data path, hosting and deployment; its
 [open questions](planning/infra/open-questions.md) are not decided — ask first. MCP tool design is still undecided.
 
 ## Commands
 
-### `mcp/`
+### Workspaces (`mcp/`, `etl/`, `packages/db/`) — from the repo root, Node 24 (`.nvmrc`)
 
 ```bash
 npm ci
-npm run dev          # tsx watch
-npm run lint         # eslint
-npm run type-check   # tsc --noEmit
-npm test             # vitest
-npm run build        # tsup -> dist/index.js
-npm run format       # prettier
+npm run lint          # eslint
+npm run format        # prettier
+npm run type-check    # tsc --noEmit, every workspace
+npm test              # vitest, every workspace
+npm run build         # tsup -> <workspace>/dist/index.js
+npm run dev -w mcp    # tsx watch
 ```
 
 Keep `lint`, `type-check`, `test` and `build` green.
@@ -53,7 +56,7 @@ latexindent -s -w -l latexindent.yaml -m thesis.tex chapters/*.tex  # format
 
 - Formatting is owned by `.editorconfig` + Prettier: tabs (width 4), no semicolons, single quotes, no trailing commas,
   print width 160.
-- `mcp/` imports use the `@mcp/*` alias, not long relative paths.
+- Workspace imports use their alias (`@mcp/*`, `@etl/*`) and `@insis/db` for shared code, not long relative paths.
 
 ## Git
 
