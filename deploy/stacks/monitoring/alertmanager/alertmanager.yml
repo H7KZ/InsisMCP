@@ -1,0 +1,18 @@
+# Webhook URL files are written from monitoring.env when the container starts (see compose.yml).
+route:
+  receiver: discord-alerts
+  group_by: [alertname, env]
+  group_wait: 1m
+  group_interval: 10m
+  repeat_interval: 12h
+  routes:
+    - matchers: [env="dev"]
+      receiver: discord-alerts-dev
+
+receivers:
+  - name: discord-alerts
+    discord_configs:
+      - webhook_url_file: /tmp/webhooks/alerts
+  - name: discord-alerts-dev
+    discord_configs:
+      - webhook_url_file: /tmp/webhooks/alerts-dev

@@ -1,0 +1,45 @@
+# Alerts → Alertmanager → Discord: env="dev" → #alerts-dev, everything else (prod, host) → #alerts.
+# ETL failures are reported by systemd directly, independent of this stack (TODO: see deploy/README.md).
+#
+# TODO(metrics): once the MCP server exposes /metrics, add data alerts:
+#   - data snapshot older than 36 h (catches an ETL that stopped running)
+#   - no servable snapshot (database down, no snapshot, schema version mismatch)
+# TODO(host scripts): RebootRequired alert once the reboot-required flag is exported (textfile collector)
+groups:
+  - name: services
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 5m
+        annotations:
+          summary: '{{ $labels.env }} {{ $labels.service }}: metrics target down'
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 2m
+        annotations:
+          summary: Postgres is down
+      - alert: HighErrorRate
+        expr: |
+          sum by (router) (rate(traefik_router_requests_total{code=~"5.."}[10m]))
+            / sum by (router) (rate(traefik_router_requests_total[10m])) > 0.05
+        for: 10m
+        annotations:
+          summary: '{{ $labels.router }}: {{ $value | humanizePercentage }} of requests fail with 5xx'
+
+  - name: host
+    rules:
+      - alert: DiskAlmostFull
+        expr: 1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} > 0.8
+        for: 15m
+        annotations:
+          summary: 'Root disk {{ $value | humanizePercentage }} full'
+      - alert: MemoryLow
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.1
+        for: 15m
+        annotations:
+          summary: 'Only {{ $value | humanizePercentage }} memory available'
+      - alert: CpuBusy
+        expr: 1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) > 0.9
+        for: 30m
+        annotations:
+          summary: 'CPU {{ $value | humanizePercentage }} busy for 30 minutes'

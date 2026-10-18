@@ -1,0 +1,139 @@
+// Single agent: scrapes host, containers, Postgres and labelled containers, ships Docker and journald logs.
+// A container opts in to metrics with labels insis.metrics.port=<port> and insis.env=<prod|dev>.
+
+prometheus.remote_write "default" {
+	endpoint {
+		url = "http://prometheus:9090/api/v1/write"
+	}
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}
+
+// --- Host -------------------------------------------------------------------
+
+// TODO(host scripts): textfile { directory = ... } for the reboot-required flag
+prometheus.exporter.unix "host" {
+	rootfs_path = "/rootfs"
+	procfs_path = "/rootfs/proc"
+	sysfs_path  = "/sys"
+}
+
+prometheus.scrape "host" {
+	targets    = prometheus.exporter.unix.host.targets
+	job_name   = "host"
+	forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// --- Containers -------------------------------------------------------------
+
+prometheus.exporter.cadvisor "containers" {
+	docker_host      = "unix:///var/run/docker.sock"
+	docker_only      = true
+	storage_duration = "5m"
+}
+
+prometheus.scrape "containers" {
+	targets    = prometheus.exporter.cadvisor.containers.targets
+	job_name   = "containers"
+	forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// --- Postgres ---------------------------------------------------------------
+
+prometheus.exporter.postgres "db" {
+	data_source_names = [string.format("postgresql://alloy_monitor:%s@postgres:5432/postgres?sslmode=disable", sys.env("PG_MONITOR_PASSWORD"))]
+}
+
+prometheus.scrape "db" {
+	targets    = prometheus.exporter.postgres.db.targets
+	job_name   = "postgres"
+	forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// --- Labelled containers (Traefik now; MCP servers once they expose /metrics) ----
+
+discovery.docker "containers" {
+	host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "metrics" {
+	targets = discovery.docker.containers.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_label_insis_metrics_port"]
+		regex         = ".+"
+		action        = "keep"
+	}
+	// discovery.docker reports each container on its first network only; Alloy joins all of them, so any IP works
+	rule {
+		source_labels = ["__meta_docker_network_ip", "__meta_docker_container_label_insis_metrics_port"]
+		separator     = ":"
+		target_label  = "__address__"
+	}
+	rule {
+		source_labels = ["__meta_docker_container_label_insis_env"]
+		target_label  = "env"
+	}
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		target_label  = "service"
+	}
+}
+
+prometheus.scrape "labelled" {
+	targets    = discovery.relabel.metrics.output
+	job_name   = "apps"
+	forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// --- Logs -------------------------------------------------------------------
+
+discovery.relabel "logs" {
+	targets = discovery.docker.containers.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+		target_label  = "project"
+	}
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		target_label  = "service"
+	}
+	rule {
+		source_labels = ["__meta_docker_container_label_insis_env"]
+		target_label  = "env"
+	}
+}
+
+loki.source.docker "containers" {
+	host          = "unix:///var/run/docker.sock"
+	targets       = discovery.relabel.logs.output
+	relabel_rules = discovery.relabel.logs.rules
+	forward_to    = [loki.write.default.receiver]
+}
+
+// systemd units (ETL runs, deploys) once they exist
+loki.relabel "journal" {
+	forward_to = []
+
+	rule {
+		source_labels = ["__journal__systemd_unit"]
+		target_label  = "unit"
+	}
+}
+
+loki.source.journal "host" {
+	max_age       = "24h"
+	relabel_rules = loki.relabel.journal.rules
+	labels        = { job = "journal" }
+	forward_to    = [loki.write.default.receiver]
+}
