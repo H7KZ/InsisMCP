@@ -1,0 +1,59 @@
+# One app environment (prod or dev): the MCP server and the ETL. Never edited on the host.
+#
+# Variables come from two env files:
+#   /etc/insis-mcp/<env>.env   hand-made secrets and settings (deploy/env/app.env.example)
+#   deploy state file          MCP_IMAGE, ETL_IMAGE, GIT_SHA (TODO: written by bin/deploy.sh, see deploy/README.md)
+#
+# TODO(images): mcp/Dockerfile and etl/Dockerfile; CI pushes ghcr.io/h7kz/insis-{mcp,etl}:sha-<commit>
+
+services:
+  mcp:
+    image: ${MCP_IMAGE:?}
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:?}
+      DATABASE_URL: postgres://${MCP_DB_USER:?}:${MCP_DB_PASSWORD:?}@postgres:5432/${PG_DATABASE:?}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    networks:
+      - edge
+      - db
+    # TODO(health): HEALTHCHECK on /health in mcp/Dockerfile; Traefik routes only to healthy containers
+    # List form: compose interpolates values, not mapping keys
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mcp-${APP_ENV}.rule=Host(`${PUBLIC_HOST:?}`)
+      - traefik.http.routers.mcp-${APP_ENV}.entrypoints=web
+      - traefik.http.routers.mcp-${APP_ENV}.middlewares=mcp-${APP_ENV}-ratelimit
+      # TODO: set to the server's port once mcp/ listens
+      - traefik.http.services.mcp-${APP_ENV}.loadbalancer.server.port=3000
+      # Per client IP, taken from X-Forwarded-For of the upstream proxy
+      - traefik.http.middlewares.mcp-${APP_ENV}-ratelimit.ratelimit.average=${RATE_LIMIT_AVERAGE:-20}
+      - traefik.http.middlewares.mcp-${APP_ENV}-ratelimit.ratelimit.burst=${RATE_LIMIT_BURST:-40}
+      - traefik.http.middlewares.mcp-${APP_ENV}-ratelimit.ratelimit.sourcecriterion.ipstrategy.depth=1
+      - insis.env=${APP_ENV}
+      # TODO(metrics): - insis.metrics.port=<port> once the server exposes /metrics; Alloy then scrapes it
+    mem_limit: 512m
+
+  # One-shot: started by the ETL timer or a deploy (TODO: bin/etl-run.sh), never by `up`
+  etl:
+    image: ${ETL_IMAGE:?}
+    profiles: [etl]
+    environment:
+      DATABASE_URL: postgres://${ETL_DB_USER:?}:${ETL_DB_PASSWORD:?}@postgres:5432/${PG_DATABASE:?}
+      READER_ROLE: ${MCP_DB_USER:?}
+      ORACLE_USER: ${ORACLE_USER:?}
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:?}
+      ORACLE_CONNECT_STRING: ${ORACLE_CONNECT_STRING:?}
+    networks:
+      - db
+      # Internet access for isis-db2 (the db network has none)
+      - default
+    labels:
+      - insis.env=${APP_ENV}
+    mem_limit: 1g
+
+networks:
+  edge:
+    external: true
+  db:
+    external: true
