@@ -1,0 +1,14 @@
+{
+	"name": "@insis/db",
+	"version": "0.0.1",
+	"description": "Database contract shared by the MCP server and the ETL",
+	"license": "MIT",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"type-check": "tsc --noEmit"
+	}
+}
