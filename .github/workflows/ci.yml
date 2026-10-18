@@ -1,0 +1,70 @@
+# Lint, type-check, test and build the npm workspaces; validate the deploy configs
+
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+    paths-ignore: ['thesis/**', 'planning/**', '**.md']
+  pull_request:
+    paths-ignore: ['thesis/**', 'planning/**', '**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  workspaces:
+    name: Lint, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # TODO: Postgres service container + TEST_DATABASE_URL once the ETL has database tests (etl/README.md § 12)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run type-check
+      - run: npm test
+      - run: npm run build
+
+  deploy-configs:
+    name: Validate deploy configs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compose files
+        working-directory: deploy
+        run: |
+          fill() { sed -E 's/^([A-Z_]+)=$/\1=0123456789abcdef0123/' "$1"; }
+          fill env/platform.env.example > /tmp/platform.env
+          fill env/monitoring.env.example > /tmp/monitoring.env
+          fill env/app.env.example > /tmp/app.env
+          printf 'MCP_IMAGE=x\nETL_IMAGE=x\nGIT_SHA=x\n' > /tmp/state.env
+          docker compose -f stacks/platform/compose.yml --env-file /tmp/platform.env config -q
+          docker compose -f stacks/monitoring/compose.yml --env-file /tmp/monitoring.env config -q
+          docker compose -f stacks/app/compose.yml --env-file /tmp/app.env --env-file /tmp/state.env --profile etl config -q
+
+      - name: Prometheus config and rules
+        run: >-
+          docker run --rm -v "$PWD/deploy/stacks/monitoring/prometheus:/etc/prometheus:ro" --entrypoint promtool
+          prom/prometheus:v3.15.0 check config /etc/prometheus/prometheus.yml
+
+      - name: Alertmanager config
+        run: >-
+          docker run --rm -v "$PWD/deploy/stacks/monitoring/alertmanager:/a:ro" --entrypoint sh prom/alertmanager:v0.34.1
+          -c 'mkdir -p /tmp/webhooks && touch /tmp/webhooks/alerts /tmp/webhooks/alerts-dev && amtool check-config /a/alertmanager.yml'
+
+      - name: Loki config
+        run: docker run --rm -v "$PWD/deploy/stacks/monitoring/loki:/l:ro" grafana/loki:3.7.8 -config.file=/l/loki.yml -verify-config
+
+      - name: Alloy config
+        run: docker run --rm -v "$PWD/deploy/stacks/monitoring/alloy:/a:ro" grafana/alloy:v1.20.1 fmt /a/config.alloy > /dev/null
+
+      # TODO: shellcheck deploy/bin/*.sh once the host scripts exist
