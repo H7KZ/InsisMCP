@@ -19,9 +19,10 @@ repository is public.
 | `planning/`       | Author's planning notes (thesis schedule, structure, …)      | Author-owned                        |
 | `planning/infra/` | Agreed infra design: ETL, runtime, deployment, monitoring    | Design only, not implemented        |
 | `TODO.md`         | Advisor questions and the implementation checklist           | Author-owned                        |
-| `.github/`        | CI: thesis PDF build, chktex lint, PDF/A validation          | Working                             |
+| `deploy/`         | VM side: platform, app and monitoring stacks, env examples   | Shared stacks done; app skeleton    |
+| `.github/`        | CI checks, deploy + GHCR cleanup (manual only), thesis build | Working; deploy not enabled yet     |
 
-Planned by the infra design, not created yet: `deploy/`, `scripts/`, `compose.yaml`, CI for the workspaces — see
+Planned by the infra design, not created yet: `deploy/bin/`, systemd units, `scripts/`, `compose.yaml` — see
 [planning/infra/repo-layout.md](planning/infra/repo-layout.md). Work goes step by step along the checklist in `TODO.md`;
 build only the step asked for.
 

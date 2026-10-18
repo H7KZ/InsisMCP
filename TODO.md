@@ -31,7 +31,8 @@ Step by step, one branch each. Design: [planning/infra/](planning/infra/README.m
 - [ ] MCP server: tools (design still open)
 - [ ] Container images for `mcp` and `etl`
 - [ ] Local development: Postgres in `compose.yaml`, dev data dump script
-- [ ] Deploy: platform stack (Traefik, Postgres), app stack, `deploy.sh` with rollback, systemd timers, env examples,
-      bootstrap runbook
-- [ ] CI: checks workflow, deploy workflow (image reuse by content hash), GHCR cleanup
-- [ ] Monitoring: Prometheus, Grafana, Loki, Alloy, alerts to Discord, weekly usage report
+- [x] Deploy: platform stack (Traefik, Postgres), app stack skeleton, monitoring stack, env examples
+- [ ] Deploy: remaining steps in [deploy/README.md](deploy/README.md#todo) (deploy script, ETL timers, roles, host
+      scripts, dashboards, bootstrap runbook)
+- [x] CI: workspace and deploy config checks; deploy and GHCR cleanup workflows (manual trigger only)
+- [ ] CI: enable push-triggered deploys and the cleanup schedule (TODOs in `.github/workflows/`)
