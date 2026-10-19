@@ -9,9 +9,11 @@
 #   push: { branches: [develop, main], paths: [mcp/**, etl/**, packages/**, package.json, package-lock.json,
 #           deploy/stacks/app/**, .github/workflows/deploy.yml] }
 #   - mcp/Dockerfile, etl/Dockerfile
-#   - deploy/bin/deploy.sh on the VM as the forced command of the CI key
+#   - the root-owned deploy script on the VM behind the CI key's forced command (deploy/BOOTSTRAP.md § 5)
 #   - GitHub environments `production` / `development` with secrets DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS and
 #     variable DEPLOY_HOST
+# TODO(prod): development only for now. Production comes with the DNS name mcp.vse.cz: add `production` to the
+# options below, the `main` push trigger, and required reviewers on the `production` environment.
 
 name: Deploy
 
@@ -21,7 +23,7 @@ on:
       environment:
         description: Target environment
         type: choice
-        options: [development, production]
+        options: [development]
       sha:
         description: Commit to deploy (full 40-character sha; empty = head of the selected branch)
         required: false
@@ -137,7 +139,7 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-      # The key's forced command runs deploy.sh with "<env> <sha>"; nothing else is possible over this key
+      # The key's forced command runs the deploy script with "<env> <sha>"; nothing else is possible over this key
       - name: Deploy
         run: >-
           ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
