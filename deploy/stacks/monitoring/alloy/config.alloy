@@ -31,7 +31,7 @@ prometheus.scrape "host" {
 // --- Containers -------------------------------------------------------------
 
 prometheus.exporter.cadvisor "containers" {
-	docker_host      = "unix:///var/run/docker.sock"
+	docker_host      = "tcp://socket-proxy:2375"
 	docker_only      = true
 	storage_duration = "5m"
 }
@@ -57,7 +57,7 @@ prometheus.scrape "db" {
 // --- Labelled containers (Traefik now; MCP servers once they expose /metrics) ----
 
 discovery.docker "containers" {
-	host = "unix:///var/run/docker.sock"
+	host = "tcp://socket-proxy:2375"
 }
 
 discovery.relabel "metrics" {
@@ -115,7 +115,7 @@ discovery.relabel "logs" {
 }
 
 loki.source.docker "containers" {
-	host          = "unix:///var/run/docker.sock"
+	host          = "tcp://socket-proxy:2375"
 	targets       = discovery.relabel.logs.output
 	relabel_rules = discovery.relabel.logs.rules
 	forward_to    = [loki.write.default.receiver]
