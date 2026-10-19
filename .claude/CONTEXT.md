@@ -31,14 +31,14 @@ are added as they are agreed.
 
 | Term               | Meaning                                                                                                   |
 |--------------------|-----------------------------------------------------------------------------------------------------------|
-| **Environment**    | `prod` (`mcp.insis.cz`, from `main`) or `dev` (`bpmcp.insis.cz`, from `develop`). Same VM, own database, MCP container and ETL run. |
-| **Upstream proxy** | VŠE's proxy in front of the shared IP; forwards to the VM on `8080`. Not ours.                            |
+| **Environment**    | `dev` (`bpmcp.vse.cz`, from `develop`) or `prod` (`mcp.vse.cz`, from `main`; not live yet). Same VM, own database, MCP container and ETL run. |
+| **Edge**           | Traefik on the VM, directly on the internet: HTTPS on 443 with Let's Encrypt, port 80 only redirects. No proxy in front. |
 | **Stack**          | A compose project on the VM: `platform`, `monitoring`, `insis-prod`, `insis-dev`.                         |
-| **Deploy bundle**  | The repo's `deploy/` directory at a given commit, fetched by `deploy.sh` into `/srv/insis-mcp/`.          |
+| **Deploy bundle**  | The repo's `deploy/` directory at a given commit, fetched by the deploy script into `/srv/insis-mcp/`.    |
 | **Image key**      | Subtree hash of an image's build inputs; tag `tree-<hash>`. Equal key → retag, no rebuild.               |
 | **`last-good`**    | Last deploy that passed the health check, in `/var/lib/insis-mcp/<env>/`; target of automatic rollback.   |
 | **Usage metrics**  | Aggregate, non-identifying counters (tool calls, latency, response size/tokens, `client_name`). No IPs, users, sessions or argument values. |
 
 ## Flagged ambiguities
 
-- `bpmcp.vse.cz` (thesis schedule) vs `bpmcp.insis.cz` / `mcp.insis.cz` (infra design): the latter are current.
+- Hostnames are `bpmcp.vse.cz` (dev) and `mcp.vse.cz` (prod, later). Any `insis.cz` name was a mistake.

@@ -7,7 +7,7 @@ All on the VM, compose project `monitoring`.
 | Component      | Role                                                                                          | ~RAM        |
 |----------------|-----------------------------------------------------------------------------------------------|-------------|
 | **Prometheus** | metrics, retention **400 d** (low cardinality → small disk; covers the whole thesis period)   | 200–300 MB  |
-| **Grafana**    | dashboards, alerting → Discord (native contact point); at `mcp.insis.cz/grafana`, login only | 100–150 MB  |
+| **Grafana**    | dashboards, alerting → Discord (native contact point); SSH tunnel only, not public | 100–150 MB  |
 | **Alloy**      | single agent: host metrics, container metrics, Postgres exporter, Docker + journald logs → Loki | 100–150 MB |
 | **Loki**       | logs, 14 d retention, filesystem storage                                                       | 150–250 MB  |
 
