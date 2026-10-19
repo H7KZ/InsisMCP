@@ -1,0 +1,24 @@
+# Traefik dynamic config (file provider, reloaded on change).
+
+tls:
+  options:
+    # Applies to every HTTPS router. Go's default cipher suites are already modern.
+    default:
+      minVersion: VersionTLS12
+      # Refuse clients that do not send a known hostname (scanners hitting the bare IP)
+      sniStrict: true
+
+http:
+  middlewares:
+    # Used by the app routers as `secure-headers@file`
+    secure-headers:
+      headers:
+        # HSTS for the exact host only: the zone vse.cz is not ours, so no includeSubDomains or preload
+        stsSeconds: 31536000
+        forceSTSHeader: true
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: no-referrer
+        customResponseHeaders:
+          # Hide the backend's server banner
+          Server: ''

@@ -1,13 +1,51 @@
 # Shared platform: edge proxy and Postgres for all environments. Started by hand (see deploy/README.md).
+#
+# Traefik faces the internet directly: it serves HTTPS on 443 with Let's Encrypt certificates (HTTP-01 challenge on
+# port 80, which otherwise only redirects to HTTPS). Hardening notes: deploy/BOOTSTRAP.md.
 
 services:
+  # Read-only view of the Docker API for Traefik and Alloy. Nothing else touches docker.sock, because whoever can talk to
+  # the raw socket is root on the host.
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:v0.4.2
+    restart: unless-stopped
+    environment:
+      # Allowed API sections; everything else, and every write (POST=0), is refused
+      PING: 1
+      VERSION: 1
+      INFO: 1
+      EVENTS: 1
+      CONTAINERS: 1
+      NETWORKS: 1
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /run
+      - /tmp
+    pids_limit: 100
+    mem_limit: 64m
+
   traefik:
     image: traefik:v3.7.15
     restart: unless-stopped
     command:
-      # Plain HTTP: the VŠE upstream proxy terminates TLS and forwards here
-      - --entrypoints.web.address=:8080
-      - --entrypoints.web.forwardedHeaders.trustedIPs=${UPSTREAM_PROXY_IPS:?}
+      # Port 80 only redirects to HTTPS (and answers the Let's Encrypt HTTP-01 challenge)
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      # Port 443: every router on this entrypoint gets a certificate for its Host(...) automatically
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls.certResolver=le
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL:?}
+      - --certificatesresolvers.le.acme.storage=/acme/acme.json
+      - --certificatesresolvers.le.acme.httpChallenge.entryPoint=web
       # Internal entrypoint for metrics and the healthcheck, not published
       - --entrypoints.metrics.address=:8082
       - --metrics.prometheus=true
@@ -17,23 +55,41 @@ services:
       - --ping.entryPoint=metrics
       # Routes come from labels of containers on the edge network; nothing is exposed unless labelled
       - --providers.docker=true
+      - --providers.docker.endpoint=tcp://socket-proxy:2375
       - --providers.docker.exposedByDefault=false
       - --providers.docker.network=edge
+      # TLS options and the secure-headers middleware (traefik/dynamic.yml)
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --providers.file.watch=true
       - --log.format=json
-      # No access log: request metrics are enough and no client addresses get stored
+      # No access log: request metrics are enough and no client addresses get stored. No dashboard or API either.
       - --accesslog=false
     ports:
-      - ${TRAEFIK_PORT:-8080}:8080
+      - 80:80
+      - 443:443
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik:/etc/traefik:ro
+      - acme:/acme
     networks:
       - edge
+      - socket
     labels:
       # Picked up by Alloy (monitoring stack)
       - insis.metrics.port=8082
     healthcheck:
       test: [CMD, traefik, healthcheck, --ping, --entrypoints.metrics.address=:8082, --ping.entryPoint=metrics]
       interval: 30s
+    depends_on:
+      - socket-proxy
+    security_opt:
+      - no-new-privileges:true
+    # Only the right to bind ports below 1024
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: 200
     mem_limit: 256m
 
   postgres:
@@ -62,6 +118,16 @@ services:
     healthcheck:
       test: [CMD, pg_isready, -U, postgres]
       interval: 10s
+    security_opt:
+      - no-new-privileges:true
+    # The entrypoint starts as root, fixes data ownership and switches to the postgres user; it needs just these
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run/postgresql
+    pids_limit: 200
     mem_limit: 2g
 
 networks:
@@ -71,6 +137,11 @@ networks:
     name: db
     # No internet access: only containers on this host talk to Postgres
     internal: true
+  socket:
+    name: socket
+    # Only for the Docker API proxy; no internet access
+    internal: true
 
 volumes:
   pgdata:
+  acme:
