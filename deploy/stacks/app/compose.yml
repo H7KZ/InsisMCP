@@ -22,16 +22,24 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.mcp-${APP_ENV}.rule=Host(`${PUBLIC_HOST:?}`)
-      - traefik.http.routers.mcp-${APP_ENV}.entrypoints=web
-      - traefik.http.routers.mcp-${APP_ENV}.middlewares=mcp-${APP_ENV}-ratelimit
+      # HTTPS with an automatic Let's Encrypt certificate for the Host above (see the platform stack)
+      - traefik.http.routers.mcp-${APP_ENV}.entrypoints=websecure
+      - traefik.http.routers.mcp-${APP_ENV}.middlewares=mcp-${APP_ENV}-ratelimit,secure-headers@file
       # TODO: set to the server's port once mcp/ listens
       - traefik.http.services.mcp-${APP_ENV}.loadbalancer.server.port=3000
-      # Per client IP, taken from X-Forwarded-For of the upstream proxy
-      - traefik.http.middlewares.mcp-${APP_ENV}-ratelimit.ratelimit.average=${RATE_LIMIT_AVERAGE:-20}
-      - traefik.http.middlewares.mcp-${APP_ENV}-ratelimit.ratelimit.burst=${RATE_LIMIT_BURST:-40}
-      - traefik.http.middlewares.mcp-${APP_ENV}-ratelimit.ratelimit.sourcecriterion.ipstrategy.depth=1
+      # Per client IP: Traefik sees the real address, there is no proxy in front
+      - traefik.http.middlewares.mcp-${APP_ENV}-ratelimit.ratelimit.average=${RATE_LIMIT_AVERAGE:-60}
+      - traefik.http.middlewares.mcp-${APP_ENV}-ratelimit.ratelimit.burst=${RATE_LIMIT_BURST:-100}
       - insis.env=${APP_ENV}
-      # TODO(metrics): - insis.metrics.port=<port> once the server exposes /metrics; Alloy then scrapes it
+      # TODO(metrics): - insis.metrics.port=<port> once the server exposes /metrics; Alloy then scrapes it.
+      # /metrics must stay on that internal port and never be routed by Traefik.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: 200
     mem_limit: 512m
 
   # One-shot: started by the ETL timer or a deploy (TODO: bin/etl-run.sh), never by `up`
@@ -50,6 +58,13 @@ services:
       - default
     labels:
       - insis.env=${APP_ENV}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: 200
     mem_limit: 1g
 
 networks:
